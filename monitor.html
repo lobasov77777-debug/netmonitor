@@ -577,11 +577,12 @@
 /* --- CHRISTMAS CYBERPUNK UPDATE --- */
 
 /* 1. Киберпанк-елка на фоне */
-.cyber-tree-container {
+584
+        
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 1;
+    z-index: 100;
     opacity: 0.8;
     pointer-events: none;
 }
@@ -932,10 +933,12 @@
             document.getElementById('alarm-modal').style.display = 'none';
             meetingSound.pause();
             meetingSound.currentTime = 0;
+                deactivateChristmasAlerts();
         }
 
         function testAlarm() {
             triggerMeeting("⏰ Тестовое совещание (Проверка)");
+                activateChristmasAlerts();
         }
 
         // --- 4. NETWORK MONITORING ---
@@ -1419,3 +1422,4 @@
 
 
 </html>
+
