@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetMonitor Pro | IT Dept.</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --panel-bg: #1f2833;
+            --text-main: #c5c6c7;
+            --accent-cyan: #66fcf1;
+            --accent-dark-cyan: #45a29e;
+            --status-ok: #00ff41;
+            --status-warn: #ffa500;
+            --status-err: #ff003c;
+            --status-info: #1fa2ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image:
+                linear-gradient(rgba(102, 252, 241, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(102, 252, 241, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* --- HEADER --- */
+        header {
+            height: 60px;
+            background: rgba(11, 12, 16, 0.95);
+            border-bottom: 1px solid var(--accent-dark-cyan);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.1);
+            z-index: 20;
+        }
+
+        h1 {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--accent-cyan);
+            font-size: 22px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 25px;
+            font-size: 13px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+            box-shadow: 0 0 5px #333;
+        }
+
+        .ind-ok {
+            background: var(--status-ok);
+            box-shadow: 0 0 8px var(--status-ok);
+        }
+
+        .ind-err {
+            background: var(--status-err);
+            box-shadow: 0 0 8px var(--status-err);
+            animation: blink 1s infinite;
+        }
+
+        /* --- LAYOUT --- */
+        .main-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+            position: relative;
+        }
+
+        /* --- TOPOLOGY MAP --- */
+        .topology-area {
+            flex: 3;
+            position: relative;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        #lines-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 60px;
+            padding-bottom: 40px;
+        }
+
+        .level-1 {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ЗОНИРОВАНИЕ */
+        .network-zones {
+            display: flex;
+            justify-content: center;
+            gap: 100px;
+            width: 100%;
+            padding: 0 20px;
+            z-index: 5;
+        }
+
+        /* Левая зона: Офис */
+        .zone-main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 30px;
+            flex: 3;
+            padding: 20px;
+            border: 1px dashed rgba(69, 162, 158, 0.15);
+            border-radius: 8px;
+            align-content: start;
+        }
+
+        /* Правая зона: Uplink (GRID) */
+        .zone-uplink {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 30px;
+            flex: 2;
+            padding: 20px;
+            border: 1px dashed rgba(102, 252, 241, 0.15);
+            border-radius: 8px;
+            align-content: start;
+            justify-items: center;
+        }
+
+        .zone-label {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 10px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        /* NODE CARDS */
+        .node-card {
+            background: rgba(31, 40, 51, 0.95);
+            border: 1px solid var(--accent-dark-cyan);
+            padding: 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            justify-self: center;
+            width: 100%;
+            max-width: 180px;
+        }
+
+        .node-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-cyan);
+        }
+
+        .node-icon {
+            font-size: 22px;
+            margin-bottom: 8px;
+            color: var(--accent-cyan);
+        }
+
+        .node-name {
+            font-weight: bold;
+            font-size: 12px;
+            color: #fff;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .node-ip {
+            font-size: 10px;
+            color: #888;
+            font-family: 'Share Tech Mono';
+            margin-bottom: 6px;
+        }
+
+        .node-ping {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: #111;
+            min-width: 60px;
+            font-family: 'Share Tech Mono';
+        }
+
+        .status-online {
+            border-top: 3px solid var(--status-ok);
+        }
+
+        .status-online .node-ping {
+            color: var(--status-ok);
+        }
+
+        .status-offline {
+            border-color: var(--status-err);
+            background: rgba(40, 5, 10, 0.9);
+            animation: shake 0.5s;
+        }
+
+        .status-offline .node-icon,
+        .status-offline .node-ping {
+            color: var(--status-err);
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            flex: 1;
+            min-width: 340px;
+            max-width: 420px;
+            background: rgba(11, 12, 16, 0.98);
+            border-left: 1px solid var(--accent-dark-cyan);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+        }
+
+        .sidebar-top {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            border-bottom: 1px solid var(--accent-dark-cyan);
+        }
+
+        .sidebar-bottom {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #000;
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            max-height: 40%;
+        }
+
+        .panel-header {
+            font-size: 14px;
+            color: var(--accent-cyan);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .device-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            border-radius: 2px;
+            border-left: 3px solid #444;
+            font-size: 12px;
+        }
+
+        .device-row.online {
+            border-left-color: var(--status-ok);
+        }
+
+        .device-row.offline {
+            border-left-color: var(--status-err);
+            background: rgba(255, 0, 60, 0.1);
+        }
+
+        .log-entry {
+            font-size: 11px;
+            margin-bottom: 6px;
+            padding-left: 10px;
+            border-left: 2px solid #333;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: #666;
+            margin-right: 5px;
+        }
+
+        .log-err {
+            border-left-color: var(--status-err);
+            color: #ff8080;
+        }
+
+        .log-ok {
+            border-left-color: var(--status-ok);
+            color: #aaffaa;
+        }
+
+        .log-info {
+            border-left-color: var(--accent-cyan);
+            color: #ccc;
+        }
+
+        .log-alarm {
+            border-left-color: var(--status-info);
+            color: var(--accent-cyan);
+        }
+
+        /* --- MODALS --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-box-alert {
+            background: #1a0505;
+            border: 2px solid var(--status-err);
+            padding: 30px;
+            width: 500px;
+            text-align: center;
+            box-shadow: 0 0 60px var(--status-err);
+            animation: alertZoom 0.3s forwards;
+        }
+
+        .modal-box-alarm {
+            background: #051a1a;
+            border: 2px solid var(--accent-cyan);
+            padding: 40px;
+            width: 500px;
+            text-align: center;
+            box-shadow: 0 0 60px var(--accent-cyan);
+            animation: alertZoom 0.3s forwards;
+        }
+
+        .modal-btn {
+            border: none;
+            padding: 15px 40px;
+            margin-top: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+
+        .btn-alert {
+            background: var(--status-err);
+            color: #fff;
+        }
+
+        .btn-alert:hover {
+            background: #ff1a53;
+        }
+
+        .btn-alarm {
+            background: transparent;
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .btn-alarm:hover {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        /* --- START OVERLAY --- */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0b0c10;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .start-btn {
+            background: transparent;
+            border: 2px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 20px 50px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .start-btn:hover {
+            background: var(--accent-cyan);
+            color: #000;
+            box-shadow: 0 0 30px var(--accent-cyan);
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        @keyframes alertZoom {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        /* --- ANIMATIONS --- */
+        #animation-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .death-star {
+            position: absolute;
+            bottom: -300px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 250px;
+            height: 250px;
+            transition: bottom 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 0 20px #000);
+        }
+
+        .death-star.active {
+            bottom: -50px;
+            animation: hoverDS 6s ease-in-out infinite alternate;
+        }
+
+        @keyframes hoverDS {
+            0% {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            100% {
+                transform: translateX(calc(-50% + 20px)) translateY(-15px) rotate(2deg);
+            }
+        }
+
+        .x-wing {
+            position: absolute;
+            left: -250px;
+            width: 120px;
+            height: auto;
+            transition: left 2.5s linear;
+            filter: drop-shadow(0 0 10px #000);
+            z-index: 10000;
+        }
+
+        .x-wing.fly {
+            left: 120vw;
+        }
+
+        .laser-beam {
+            position: absolute;
+            height: 6px;
+            transform-origin: 0 50%;
+            opacity: 0;
+            transition: opacity 0.1s;
+            border-radius: 3px;
+            z-index: 9998;
+        }
+
+        .explosion {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #ffeb3b 0%, #ff5722 50%, transparent 70%);
+            border-radius: 50%;
+            animation: explode 0.6s ease-out forwards;
+            z-index: 10001;
+            box-shadow: 0 0 20px #ff5722;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0.5);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(2);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="animation-layer"></div>
+    <!-- START OVERLAY -->
+    <div id="start-overlay">
+        <h1 style="margin-bottom: 30px;">IT ASSISTANT v3.4 (Anti-Flap)</h1>
+        <button class="start-btn" onclick="startSystem()">INITIALIZE SYSTEM</button>
+        <div style="margin-top: 20px; color: #666; font-size: 12px;">Click to enable monitoring and alarms</div>
+    </div>
+
+    <header>
+        <h1><span style="color:#fff">NET</span>::MONITOR</h1>
+        <div class="header-stats">
+            <div class="stat-item">
+                <div id="ind-internet" class="indicator"></div>
+                <span>YANDEX DNS</span>
+            </div>
+            <div class="stat-item">
+                <div id="ind-backend" class="indicator"></div>
+                <span>SERVER</span>
+            </div>
+            <div class="stat-item" style="color: var(--accent-cyan)">
+                <span id="clock">00:00:00</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="topology-area">
+            <svg id="lines-svg"></svg>
+
+            <div class="tree">
+                <!-- Уровень 1: Главный -->
+                <div class="level-1" id="root-node-container"></div>
+
+                <!-- Уровень 2: Зоны -->
+                <div class="network-zones">
+                    <!-- Зона 1: Основной офис -->
+                    <div class="zone-main" id="main-cluster">
+                        <div class="zone-label">Main Office Infrastructure</div>
+                    </div>
+
+                    <!-- Зона 2: Uplink (С серверами) -->
+                    <div class="zone-uplink" id="uplink-branch">
+                        <div class="zone-label">Remote Branch (Uplink)</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-top">
+                <div class="panel-header">Network Status</div>
+                <div class="device-list" id="sidebar-list"></div>
+            </div>
+            <div class="sidebar-bottom">
+                <div class="panel-header">
+                    <span>Event Log</span>
+                    <span style="cursor:pointer; font-size:10px;" onclick="clearLogs()">[CLEAR]</span>
+                </div>
+                <div id="log-container">
+                    <div class="log-entry log-info"><span class="log-time">SYS</span> Awaiting initialization...</div>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button onclick="testFail()"
+                        style="flex:1; background:transparent; border:1px dashed #444; color:#555; cursor:pointer; font-size:10px; padding:5px;">[
+                        TEST CRASH ]</button>
+                    <button onclick="testAlarm()"
+                        style="flex:1; background:transparent; border:1px dashed #444; color:#555; cursor:pointer; font-size:10px; padding:5px;">[
+                        TEST ALARM ]</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div class="modal-overlay" id="alert-modal">
+        <div class="modal-box-alert">
+            <h2 style="color:var(--status-err); font-size: 32px;">⚠️ ПРОБЛЕМЫ В СЕТИ</h2>
+            <p id="alert-text" style="margin:20px 0; color:#fff; font-size:18px; line-height: 1.5;"></p>
+            <button class="modal-btn btn-alert" onclick="acknowledgeAlert()">ПОНЯЛ! ПРОВЕРЯЮ!</button>
+        </div>
+    </div>
+
+    <!-- Alarm Modal -->
+    <div class="modal-overlay" id="alarm-modal">
+        <div class="modal-box-alarm">
+            <h2 style="color:var(--accent-cyan); font-size: 32px; text-transform: uppercase;">⏰ НАПОМИНАНИЕ!</h2>
+            <p id="alarm-text" style="margin:20px 0; color:#fff; font-size:24px; line-height: 1.5; font-weight:bold;">
+            </p>
+            <button class="modal-btn btn-alarm" onclick="acknowledgeMeeting()">ПОНЯЛ! УЖЕ ИДУ ВКЛЮЧАТЬ</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+
+        const internetIP = "77.88.8.8";
+        const devices = [
+            // ROOT
+            { id: 1, name: "Main Switch (Office)", ip: "192.168.2.21", type: "switch", parent: null },
+
+            // OFFICE DEVICES (Parent: 1)
+            { id: 2, name: "WiFi Server", ip: "192.168.1.4", type: "server", parent: 1 },
+            { id: 3, name: "DC/DHCP (NC11)", ip: "192.168.0.11", type: "server", parent: 1 },
+            { id: 4, name: "DB Galaktika (SG3)", ip: "192.168.0.45", type: "db", parent: 1 },
+            { id: 5, name: "Old DB Galaktika (SG2)", ip: "192.168.0.22", type: "db", parent: 1 },
+            { id: 6, name: "Backup DB (SG4)", ip: "192.168.0.102", type: "db", parent: 1 },
+            { id: 7, name: "NVR Улица", ip: "192.168.2.141", type: "cam", parent: 1 },
+            { id: 8, name: "NVR Производство", ip: "192.168.2.28", type: "cam", parent: 1 },
+            { id: 9, name: "IT", ip: "192.168.0.100", type: "server", parent: 1 },
+            { id: 10, name: "NAS Server", ip: "192.168.0.199", type: "db", parent: 1 },
+            { id: 11, name: "1С ЗУП", ip: "192.168.0.178", type: "server", parent: 1 },
+
+            // UPLINK BRANCH
+            { id: 12, name: "Switch (Uplink)", ip: "192.168.2.21", type: "switch", parent: 1 },
+            { id: 13, name: "Switch (Downlink)", ip: "192.168.2.24", type: "switch", parent: 12 },
+
+            // NEW SERVERS (Connected to Downlink 2.24)
+            { id: 14, name: "NT9", ip: "192.168.2.9", type: "server", parent: 13 },
+            { id: 15, name: "ST1", ip: "192.168.1.14", type: "server", parent: 13 },
+            { id: 16, name: "GIS", ip: "192.168.0.5", type: "server", parent: 13 },
+            { id: 17, name: "ST11", ip: "192.168.1.45", type: "server", parent: 13 },
+            { id: 18, name: "NT2", ip: "192.168.2.2", type: "server", parent: 13 },
+            { id: 19, name: "SG1", ip: "192.168.201.111", type: "db", parent: 13 },
+            { id: 20, name: "NT5", ip: "192.168.2.12", type: "server", parent: 13 },
+            { id: 21, name: "PERCO", ip: "192.168.2.151", type: "server", parent: 13 },
+            { id: 22, name: "ST2", ip: "192.168.2.10", type: "server", parent: 13 }
+        ];
+
+        const schedule = [
+            { time: "07:55", label: "☕ Утреннее совещание" },
+            { time: "10:25", label: "💰 Совещание по платежам" },
+            { time: "15:25", label: "📉 Вечернее совещание" }
+        ];
+
+        // --- 2. STATE & AUDIO ---
+        let deviceStates = {};
+        let internetState = { status: 'pending', ping: 0, failCount: 0 };
+        let alertActive = false;
+        let meetingActive = false;
+        let monitoringStarted = false;
+        let lastAlarmTime = "";
+
+        const crashSound = new Audio('ghostbusters.mp3');
+        crashSound.loop = true;
+
+        const meetingSound = new Audio('alarm.mp3');
+        meetingSound.loop = true;
+
+        // --- 3. SYSTEM LOGIC ---
+        function startSystem() {
+            crashSound.play().then(() => { crashSound.pause(); crashSound.currentTime = 0; });
+            meetingSound.play().then(() => { meetingSound.pause(); meetingSound.currentTime = 0; });
+
+            document.getElementById('start-overlay').style.display = 'none';
+            init();
+            addLog("System Initialized & Anti-Flap Enabled", "info");
+        }
+
+        function init() {
+            if (monitoringStarted) return;
+            monitoringStarted = true;
+
+            devices.forEach(d => {
+                deviceStates[d.id] = { status: 'pending', ping: 0, lastStatus: 'pending', failCount: 0 };
+            });
+
+            renderTopology();
+
+            setInterval(monitorLoop, 2000);
+            setInterval(clockLoop, 1000);
+
+            window.addEventListener('resize', drawLines);
+            document.querySelector('.topology-area').addEventListener('scroll', drawLines);
+            setTimeout(drawLines, 500);
+        }
+
+        function clockLoop() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timeStr = `${hours}:${minutes}`;
+
+            document.getElementById('clock').textContent = `${timeStr}:${seconds}`;
+
+            if (!meetingActive && timeStr !== lastAlarmTime) {
+                const alarm = schedule.find(s => s.time === timeStr);
+                if (alarm) {
+                    triggerMeeting(alarm.label);
+                    lastAlarmTime = timeStr;
+                }
+            }
+        }
+
+        function triggerMeeting(label) {
+            meetingActive = true;
+            const modal = document.getElementById('alarm-modal');
+            document.getElementById('alarm-text').textContent = label;
+            modal.style.display = 'flex';
+            addLog(`ALARM: ${label}`, "alarm");
+            meetingSound.currentTime = 0;
+            meetingSound.play().catch(e => console.error("Audio blocked:", e));
+        }
+
+        function acknowledgeMeeting() {
+            meetingActive = false;
+            document.getElementById('alarm-modal').style.display = 'none';
+            meetingSound.pause();
+            meetingSound.currentTime = 0;
+        }
+
+        function testAlarm() {
+            triggerMeeting("⏰ Тестовое совещание (Проверка)");
+        }
+
+        // --- 4. NETWORK MONITORING ---
+        async function monitorLoop() {
+            if (alertActive || meetingActive) return;
+
+            const ipList = devices.map(d => d.ip);
+            ipList.push(internetIP);
+
+            try {
+                const response = await fetch('http://localhost:3000/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ips: ipList })
+                });
+
+                if (!response.ok) throw new Error();
+                const indBackend = document.getElementById('ind-backend');
+                const indInternet = document.getElementById('ind-internet');
+
+                indBackend.classList.remove('ind-err');
+                indBackend.classList.add('ind-ok');
+
+                const results = await response.json();
+
+                // 1. Internet Check
+                const netRes = results.find(r => r.ip === internetIP);
+                if (netRes) {
+                    const prevNet = internetState.status;
+                    if (netRes.alive) {
+                        internetState.failCount = 0;
+                        internetState.status = 'online';
+                        internetState.ping = netRes.time;
+                        indInternet.classList.remove('ind-err');
+                        indInternet.classList.add('ind-ok');
+                        if (prevNet === 'offline') addLog("Internet RESTORED", "ok");
+                    } else {
+                        internetState.failCount++;
+                        if (internetState.failCount > 3) {
+                            internetState.status = 'offline';
+                            indInternet.classList.remove('ind-ok');
+                            indInternet.classList.add('ind-err');
+                            if (prevNet !== 'offline') addLog("Internet LOST", "err");
+                        }
+                    }
+                }
+
+                // 2. Devices Check
+                results.forEach(res => {
+                    const device = devices.find(d => d.ip === res.ip);
+                    if (!device) return;
+
+                    const state = deviceStates[device.id];
+                    const prevStatus = state.lastStatus;
+
+                    if (res.alive) {
+                        // ONLINE
+                        if (prevStatus === 'offline') {
+                            // Recovered
+                            // Avoid re-triggering if already online but lastStatus was offline
+                            if (!state.animating && state.status !== 'online') {
+                                state.animating = true;
+                                animateXWing(device.id, () => {
+                                    state.status = 'online';
+                                    state.ping = res.time;
+                                    state.failCount = 0;
+                                    state.animating = false;
+                                    addLog(`[${device.name}] RESTORED by New Republic`, "ok");
+                                    updateUI();
+                                });
+                            } else {
+                                // Already marked online by callback
+                                state.ping = res.time;
+                                state.failCount = 0;
+                            }
+                        } else {
+                            // Still online
+                            state.status = 'online';
+                            state.ping = res.time;
+                            state.failCount = 0;
+                        }
+                    } else {
+                        // OFFLINE
+                        state.failCount++;
+
+                        // Threshold check
+                        if (state.failCount > 3) {
+                            // Only trigger animation if:
+                            // 1. Prev status was NOT offline (it's a new failure)
+                            // 2. Current status is NOT offline (if it is, we already ran the callback)
+                            // 3. Not currenlty animating
+                            if (prevStatus !== 'offline' && state.status !== 'offline' && !state.animating) {
+                                state.animating = true;
+                                animateDeathStar(device.id, () => {
+                                    state.status = 'offline';
+                                    state.ping = 0;
+                                    state.animating = false;
+                                    addLog(`[${device.name}] DESTROYED by Empire`, "err");
+                                    triggerAlert(device);
+                                    updateUI();
+                                });
+                            } else if (state.status === 'offline') {
+                                // Already offline
+                                state.ping = 0;
+                            }
+                        }
+                    }
+                    if (!state.animating) state.lastStatus = state.status;
+                });
+
+            } catch (error) {
+                document.getElementById('ind-backend').classList.remove('ind-ok');
+                document.getElementById('ind-backend').classList.add('ind-err');
+                console.error(error);
+            }
+
+            updateUI();
+        }
+
+        function triggerAlert(device) {
+            alertActive = true;
+            const modal = document.getElementById('alert-modal');
+            document.getElementById('alert-text').innerHTML = `
+                Соединение потеряно (стабильно нет пинга):<br>
+                <strong style="color:var(--accent-cyan); font-size:1.2em;">${device.name}</strong><br>
+                <span style="color:#888">${device.ip}</span>
+            `;
+            modal.style.display = 'flex';
+            crashSound.currentTime = 0;
+            crashSound.play().catch(e => console.error("Play failed:", e));
+        }
+
+        function acknowledgeAlert() {
+            alertActive = false;
+            document.getElementById('alert-modal').style.display = 'none';
+            crashSound.pause();
+            crashSound.currentTime = 0;
+        }
+
+        function testFail() {
+            // Test trigger
+            const d = devices[0];
+            deviceStates[d.id].failCount = 4;
+            // Force animation
+            animateDeathStar(d.id, () => {
+                deviceStates[d.id].status = 'offline';
+                triggerAlert(d);
+            });
+        }
+
+        function addLog(msg, type = 'info') {
+            const container = document.getElementById('log-container');
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ru-RU');
+            const div = document.createElement('div');
+            div.className = `log-entry log-${type}`;
+            div.innerHTML = `<span class="log-time">${timeStr}</span> ${msg}`;
+            container.insertBefore(div, container.firstChild);
+            if (container.children.length > 50) container.removeChild(container.lastChild);
+        }
+        function clearLogs() { document.getElementById('log-container').innerHTML = ''; }
+
+        function getIconHTML(type) {
+            if (type === 'switch') return '&#9670;';
+            if (type === 'db') return '&#9650;';
+            if (type === 'cam') return '&#9673;';
+            return '&#9632;';
+        }
+
+        // --- ANIMATIONS AND GFX ---
+        function getCenter(element) {
+            const rect = element.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+        }
+
+        function createLaser(x1, y1, x2, y2, color) {
+            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+            const laser = document.createElement('div');
+            laser.className = 'laser-beam';
+            laser.style.width = length + 'px';
+            laser.style.left = x1 + 'px';
+            laser.style.top = y1 + 'px';
+            laser.style.transform = `rotate(${angle}deg)`;
+            laser.style.backgroundColor = color;
+            laser.style.boxShadow = `0 0 10px ${color}`;
+
+            document.getElementById('animation-layer').appendChild(laser);
+
+            setTimeout(() => { laser.style.opacity = 1; }, 10);
+            setTimeout(() => { laser.style.opacity = 0; }, 300);
+            setTimeout(() => { laser.remove(); }, 500);
+        }
+
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (x - 25) + 'px';
+            explosion.style.top = (y - 25) + 'px';
+            document.getElementById('animation-layer').appendChild(explosion);
+            setTimeout(() => explosion.remove(), 600);
+        }
+
+        // DEATH STAR LOGIC
+        function animateDeathStar(targetId, callback) {
+            const layer = document.getElementById('animation-layer');
+            const targetEl = document.getElementById(`node-${targetId}`);
+            if (!targetEl) { callback(); return; }
+
+            // Check if already present
+            let ds = document.querySelector('.death-star');
+            let isNew = false;
+
+            if (!ds) {
+                ds = document.createElement('img');
+                ds.src = 'death-star.png';
+                ds.className = 'death-star';
+                layer.appendChild(ds);
+                isNew = true;
+                // Animate In
+                requestAnimationFrame(() => { ds.classList.add('active'); });
+            }
+
+            // Shoot Function
+            const shoot = () => {
+                const dsCenter = getCenter(ds);
+                const source = { x: dsCenter.x, y: dsCenter.y - 50 };
+                const targetCenter = getCenter(targetEl);
+
+                createLaser(source.x, source.y, targetCenter.x, targetCenter.y, '#ff003c');
+
+                setTimeout(() => {
+                    createExplosion(targetCenter.x, targetCenter.y);
+                    callback();
+                }, 100);
+            };
+
+            if (isNew) {
+                // Wait for rise
+                setTimeout(shoot, 1500);
+            } else {
+                // Shoot immediately
+                setTimeout(shoot, 500);
+            }
+
+            // NOTE: We do NOT remove the Death Star here anymore. It stays!
+        }
+
+        // X-WING LOGIC
+        function animateXWing(targetId, callback) {
+            const layer = document.getElementById('animation-layer');
+            const targetEl = document.getElementById(`node-${targetId}`);
+            if (!targetEl) { callback(); return; }
+
+            // Summon X-Wing
+            const xw = document.createElement('img');
+            xw.src = 'x-wing.png';
+            xw.className = 'x-wing';
+            const targetRect = targetEl.getBoundingClientRect();
+            // Aim X-wing slightly higher for visual balance
+            xw.style.top = (targetRect.top - 50) + 'px';
+
+            layer.appendChild(xw);
+
+            // Animate Fly across
+            requestAnimationFrame(() => { xw.classList.add('fly'); });
+
+            // Shoot Mid-Flight at Server
+            setTimeout(() => {
+                const currentXW = xw.getBoundingClientRect();
+                const source = { x: currentXW.left + currentXW.width / 2, y: currentXW.top + currentXW.height / 2 };
+                const targetCenter = getCenter(targetEl);
+
+                createLaser(source.x, source.y, targetCenter.x, targetCenter.y, '#00ff41');
+
+                setTimeout(() => {
+                    // Update State (Server turns green)
+                    callback();
+
+                    // TARGET DEATH STAR?
+                    const ds = document.querySelector('.death-star');
+                    if (ds) {
+                        setTimeout(() => {
+                            // Shoot at Death Star
+                            const dsCenter = getCenter(ds);
+                            const newXW = xw.getBoundingClientRect();
+                            const newSrc = { x: newXW.left + newXW.width / 2, y: newXW.top + newXW.height / 2 };
+
+                            createLaser(newSrc.x, newSrc.y, dsCenter.x, dsCenter.y, '#00ff41');
+
+                            // Death Star Explodes/Leaves
+                            setTimeout(() => {
+                                createExplosion(dsCenter.x, dsCenter.y);
+                                ds.classList.remove('active'); // Fall down
+                                setTimeout(() => ds.remove(), 1000);
+                            }, 100);
+                        }, 300);
+                    }
+                }, 100);
+            }, 1200);
+
+            // Cleanup X-Wing
+            setTimeout(() => {
+                xw.remove();
+            }, 3000);
+        }
+
+        // --- RENDER TOPOLOGY (WITH ZONES) ---
+        function renderTopology() {
+            const rootContainer = document.getElementById('root-node-container');
+            const mainCluster = document.getElementById('main-cluster');
+            const uplinkBranch = document.getElementById('uplink-branch');
+
+            mainCluster.innerHTML = '<div class="zone-label">Main Office Infrastructure</div>';
+            uplinkBranch.innerHTML = '<div class="zone-label">Remote Branch (Uplink)</div>';
+
+            const renderCard = (d) => `
+                <div class="node-card" id="node-${d.id}">
+                    <div class="node-icon">${getIconHTML(d.type)}</div>
+                    <div class="node-name">${d.name}</div>
+                    <div class="node-ip">${d.ip}</div>
+                    <div class="node-ping">...</div>
+                </div>`;
+
+            const root = devices.find(d => d.parent === null);
+            if (root) rootContainer.innerHTML = renderCard(root);
+
+            devices.forEach(d => {
+                if (d.parent === null) return;
+                const isUplinkZone = (d.id === 12 || d.parent === 12 || d.parent === 13);
+                if (isUplinkZone) {
+                    uplinkBranch.innerHTML += renderCard(d);
+                } else {
+                    mainCluster.innerHTML += renderCard(d);
+                }
+            });
+        }
+
+        function updateUI() {
+            const list = document.getElementById('sidebar-list');
+            list.innerHTML = '';
+
+            const netStatus = internetState.status === 'online' ? 'online' : 'offline';
+            list.innerHTML += `
+                <div class="device-row ${netStatus}">
+                    <div><span style="font-weight:bold">WAN / YANDEX</span><div style="font-size:10px;color:#888">77.88.8.8</div></div>
+                    <div style="font-family:'Share Tech Mono'">${internetState.status === 'online' ? internetState.ping + ' ms' : 'DOWN'}</div>
+                </div>
+            `;
+
+            devices.forEach(d => {
+                const state = deviceStates[d.id];
+                const card = document.getElementById(`node-${d.id}`);
+
+                if (card) {
+                    const pingEl = card.querySelector('.node-ping');
+                    if (state.status === 'online') {
+                        card.className = `node-card status-online`;
+                        pingEl.textContent = state.ping + ' ms';
+                    } else if (state.status === 'offline') {
+                        card.className = `node-card status-offline`;
+                        pingEl.textContent = 'TIMEOUT';
+                    } else {
+                        // Pending
+                    }
+                }
+
+                const statusClass = state.status === 'online' ? 'online' : (state.status === 'offline' ? 'offline' : '');
+                list.innerHTML += `
+                    <div class="device-row ${statusClass}">
+                        <div><div class="device-name-side">${d.name}</div><div class="device-ip-side">${d.ip}</div></div>
+                        <div class="device-stat">${state.status === 'online' ? state.ping + ' ms' : 'ERR'}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function drawLines() {
+            const svg = document.getElementById('lines-svg');
+            const container = document.querySelector('.topology-area');
+
+            svg.innerHTML = '';
+            svg.style.width = container.scrollWidth + 'px';
+            svg.style.height = container.scrollHeight + 'px';
+
+            const cRect = container.getBoundingClientRect();
+
+            devices.filter(d => d.parent !== null).forEach(child => {
+                const childEl = document.getElementById(`node-${child.id}`);
+                const parentEl = document.getElementById(`node-${child.parent}`);
+
+                if (childEl && parentEl) {
+                    const chRect = childEl.getBoundingClientRect();
+                    const pRect = parentEl.getBoundingClientRect();
+
+                    const childX = (chRect.left - cRect.left) + (chRect.width / 2) + container.scrollLeft;
+                    const childY = (chRect.top - cRect.top) + container.scrollTop;
+                    const parentX = (pRect.left - cRect.left) + (pRect.width / 2) + container.scrollLeft;
+                    const parentY = (pRect.top - cRect.top) + container.scrollTop;
+
+                    const deltaY = childY - parentY;
+                    const curveStrength = Math.abs(deltaY) < 80 ? 40 : 80;
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+                    let d;
+                    if (Math.abs(childX - parentX) < 50) {
+                        d = `M ${parentX} ${parentY} L ${childX} ${childY}`;
+                    } else {
+                        d = `M ${parentX} ${parentY} C ${parentX} ${parentY + curveStrength}, ${childX} ${childY - curveStrength}, ${childX} ${childY}`;
+                    }
+
+                    path.setAttribute('d', d);
+                    path.setAttribute('stroke', '#45a29e');
+                    path.setAttribute('stroke-width', '1.5');
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('opacity', '0.5');
+                    svg.appendChild(path);
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
